@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Campus</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--text:#16181d;--hint:#6b7280;--btn:#2563eb;--btnt:#fff;--line:#e5e7eb;--ok:#16a34a;--bad:#dc2626;--warn:#d97706;--r:16px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+header{padding:20px 16px 8px}h1{margin:0;font-size:24px;letter-spacing:-.4px}.sub{color:var(--hint);font-size:13px}
+main{padding:8px 16px}.search{width:100%;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--text);font-size:16px;outline:none;margin:8px 0 12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:var(--card);border-radius:var(--r);padding:14px}.stat b{display:block;font-size:28px;letter-spacing:-.5px}.stat span{color:var(--hint);font-size:13px}
+.card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;cursor:pointer}
+.card small{color:var(--hint);display:block}.pill{font-size:12px;padding:3px 9px;border-radius:99px;white-space:nowrap;background:#e5e7eb;color:#374151}
+.free{background:#dcfce7;color:#166534}.full{background:#fee2e2;color:#991b1b}.over{background:#fef3c7;color:#92400e}
+.rooms{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.room{background:var(--card);border-radius:14px;padding:12px 8px;text-align:center;cursor:pointer}.room b{font-size:18px;display:block}.room small{font-size:12px}
+.chips{display:flex;gap:8px;margin-bottom:10px;overflow-x:auto}.chip{padding:8px 14px;border-radius:99px;background:var(--card);border:1px solid var(--line);white-space:nowrap;cursor:pointer}.chip.on{background:var(--btn);color:var(--btnt);border-color:var(--btn)}
+h2{font-size:17px;margin:16px 0 8px}.muted{color:var(--hint)}.empty,.err{text-align:center;padding:36px 16px;color:var(--hint)}.err{color:var(--bad)}
+button.primary{background:var(--btn);color:var(--btnt);border:0;border-radius:12px;padding:12px 18px;font-size:15px;margin-top:12px}
+.sk{height:60px;border-radius:var(--r);margin-bottom:10px;background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);background-size:200% 100%;animation:s 1.2s infinite}@keyframes s{to{background-position:-200% 0}}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:10px 0 8px;color:var(--hint);font-size:11px}nav button.on{color:var(--btn)}nav svg{display:block;margin:0 auto 2px;width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.shade{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none}.sheet{position:fixed;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;background:var(--bg);border-radius:22px 22px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));display:none}
+.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.row span:first-child{color:var(--hint)}.row span:last-child{text-align:right;word-break:break-word}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:#111827;color:#fff;padding:10px 16px;border-radius:12px;opacity:0;transition:.2s;pointer-events:none}.toast.show{opacity:1}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#1b1e25;--text:#f3f4f6;--hint:#9ca3af;--line:#2a2e37}.pill{background:#2a2e37;color:#d1d5db}.sk{background:#1b1e25}}
+</style></head><body>
+<header><h1>CAMPUS</h1><div class="sub" id="who">Student Council</div></header>
+<main id="view"></main>
+<nav id="nav"></nav>
+<div class="shade" id="shade"></div><div class="sheet" id="sheet"></div><div class="toast" id="toast"></div>
+<script>
+const API_URL='__API_URL__'; // URL развёртывания Apps Script (оканчивается на /exec)
+const tg=window.Telegram&&Telegram.WebApp;if(tg){tg.ready();tg.expand();const t=tg.themeParams||{},s=document.documentElement.style;
+ if(t.bg_color){s.setProperty('--bg',t.secondary_bg_color||t.bg_color);s.setProperty('--card',t.bg_color);s.setProperty('--text',t.text_color);s.setProperty('--hint',t.hint_color||'#6b7280');s.setProperty('--btn',t.button_color||'#2563eb');s.setProperty('--btnt',t.button_text_color||'#fff')}}
+const $=id=>document.getElementById(id),esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let tab='home',boot=null,rooms=null,filter='all',roomQ='',timer;
+async function api(method,params){
+ if(!tg||!tg.initData)throw new Error('Откройте приложение из Telegram через бота.');
+ let r;try{r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({initData:tg.initData,method,params})})}catch(e){throw new Error('Нет связи с сервером. Проверьте интернет.')}
+ const j=await r.json();if(!j.ok)throw new Error(j.error.message);return j.data}
+const skel=()=>'<div class="sk"></div>'.repeat(4),fail=(m,f)=>`<div class="err">${esc(m)}<br><button class="primary" onclick="${f}()">Повторить</button></div>`;
+function toast(m){const t=$('toast');t.textContent=m;t.className='toast show';setTimeout(()=>t.className='toast',1800)}
+const ic={home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',st:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-4 3-6 6.5-6s6 2 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2 .8 3.2 2.7 3.5 6"/>',rm:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'};
+function nav(){const t=[['home','Главная','home'],['st','Студенты','st'],['rm','Комнаты','rm']];
+ $('nav').innerHTML=t.map(([k,l,i])=>`<button class="${tab===k?'on':''}" onclick="go('${k}')"><svg viewBox="0 0 24 24">${ic[i]}</svg>${l}</button>`).join('')}
+function go(k){tab=k;nav();({home:home,st:students,rm:roomsView})[k]()}
+function pill(r){return `<span class="pill ${r.status}">${r.status==='over'?'перебор':r.status==='full'?'заполнена':r.free+' '+(r.free===1?'место':'мест')}</span>`}
+async function home(){const v=$('view');v.innerHTML=skel();
+ try{if(!boot)boot=await api('bootstrap');const s=boot.stats;$('who').textContent=boot.me.name+' · '+boot.me.role;
+  v.innerHTML=`<input class="search" id="q0" placeholder="Найти студента, ИИН или комнату" readonly onclick="go('st')">
+  <div class="grid"><div class="stat"><b>${s.residents}</b><span>Проживает</span></div><div class="stat"><b>${s.freePlaces}</b><span>Свободных мест</span></div>
+  <div class="stat"><b>${s.rooms}</b><span>Комнат</span></div><div class="stat"><b style="color:${s.attention?'var(--warn)':'inherit'}">${s.attention}</b><span>Требует внимания</span></div></div>
+  <h2>Выселено всего</h2><div class="muted">${s.evicted}</div>`}catch(e){v.innerHTML=fail(e.message,'home')}}
+function students(){$('view').innerHTML='<input class="search" id="q" placeholder="ФИО, ИИН или номер комнаты" autofocus><div id="res"><div class="empty">Начните вводить запрос</div></div>';
+ $('q').oninput=e=>{clearTimeout(timer);timer=setTimeout(()=>runSearch(e.target.value),300)}}
+async function runSearch(q){const o=$('res');if(!q.trim()){o.innerHTML='<div class="empty">Начните вводить запрос</div>';return}
+ o.innerHTML=skel();try{const l=await api('searchStudents',{q});o.innerHTML=l.length?l.map(cardS).join(''):'<div class="empty">Ничего не найдено</div>'}catch(e){o.innerHTML=fail(e.message,'go.bind(0,"st")')}}
+const cardS=s=>`<div class="card" onclick="openStudent(${s.row})"><div><b>${esc(s.fio)}</b><small>${esc(s.faculty||'Факультет не указан')}</small></div><div style="text-align:right"><span class="pill ${s.active?'free':''}">${s.active?'Проживает':'Выселен'}</span><small>${s.room?'комн. '+esc(s.room):'без комнаты'}</small></div></div>`;
+function sheet(h){$('sheet').innerHTML=h;$('sheet').style.display='block';$('shade').style.display='block'}
+function closeSheet(){$('sheet').style.display='none';$('shade').style.display='none'}$('shade').onclick=closeSheet;
+const f=(a,b,c)=>`<div class="row"><span>${a}</span><span>${b?esc(b):'<i class="muted">не указано</i>'}${c||''}</span></div>`;
+async function openStudent(row){sheet(skel());
+ try{const s=await api('getStudent',{row});window._s=s;
+  sheet(`<h2 style="margin-top:0">${esc(s.fio)}</h2><span class="pill ${s.active?'free':''}">${s.active?'Проживает':'Выселен '+esc(s.evictedOn)}</span>
+  ${f('Комната',s.room,s.room?` <a href="#" onclick="openRoom('${esc(s.room)}');return false">→</a>`:'')}${f('Дата заселения',s.dateIn)}${f('Дата рождения',s.birth)}
+  ${f('ИИН / паспорт',s.iin,s.iin?` <a href="#" onclick="copy(_s.iin);return false">копировать</a>`:'')}${f('Факультет',s.faculty)}${f('Прописка',s.registration)}${f('Оплата',s.payment)}
+  <button class="primary" onclick="copy(_s.fio)">Копировать ФИО</button>
+  <p class="muted" style="font-size:12px">Изменение, переселение и выселение появятся на следующем этапе.</p>`)}catch(e){sheet(fail(e.message,'closeSheet'))}}
+function copy(t){navigator.clipboard.writeText(t).then(()=>toast('Скопировано'),()=>toast('Не удалось скопировать'))}
+async function roomsView(){const v=$('view');v.innerHTML=skel();
+ try{if(!rooms)rooms=await api('listRooms');drawRooms()}catch(e){v.innerHTML=fail(e.message,'roomsView')}}
+function drawRooms(){const L=rooms.filter(r=>(filter==='all'||(filter==='free'&&r.free>0)||(filter==='full'&&r.status!=='free'))&&(!roomQ||r.room.indexOf(roomQ)===0));
+ $('view').innerHTML=`<input class="search" id="rq" inputmode="numeric" placeholder="Номер комнаты" value="${esc(roomQ)}">
+ <div class="chips">${[['all','Все'],['free','Есть места'],['full','Заполнены']].map(([k,l])=>`<div class="chip ${filter===k?'on':''}" onclick="filter='${k}';drawRooms()">${l}</div>`).join('')}</div>
+ <div class="rooms">${L.map(r=>`<div class="room" onclick="openRoom('${esc(r.room)}')"><b>${esc(r.room)}</b><small class="muted">${r.count} / ${r.capacity}</small><br>${pill(r)}</div>`).join('')||'<div class="empty" style="grid-column:1/-1">Нет комнат</div>'}</div>`;
+ const q=$('rq');q.oninput=e=>{roomQ=e.target.value.trim();const p=e.target.selectionStart;drawRooms();const n=$('rq');n.focus();n.setSelectionRange(p,p)}}
+async function openRoom(n){sheet(skel());
+ try{const r=await api('getRoom',{room:n});sheet(`<h2 style="margin-top:0">Комната ${esc(r.room)}</h2>${pill(r)}
+  <div class="grid" style="margin:12px 0"><div class="stat"><b>${r.count}</b><span>Проживает</span></div><div class="stat"><b>${r.free}</b><span>Свободно из ${r.capacity}</span></div></div>
+  ${r.residents.map(cardS).join('')||'<div class="empty">В комнате никто не проживает</div>'}`)}catch(e){sheet(fail(e.message,'closeSheet'))}}
+nav();home();
+</script></body></html>
