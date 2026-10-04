@@ -31,7 +31,7 @@ nav button{flex:1;border:0;background:none;padding:10px 0 8px;color:var(--hint);
 <nav id="nav"></nav>
 <div class="shade" id="shade"></div><div class="sheet" id="sheet"></div><div class="toast" id="toast"></div>
 <script>
-const API_URL='__API_URL__'; // URL развёртывания Apps Script (оканчивается на /exec)
+const API_URL='https://script.google.com/macros/s/AKfycbx3CvtIgHb4fdHg19do-NRC2oKkN5UF0rVsolNnc8SlBfLpT8KYuz_V53ukwLJIV5-O/exec';
 const tg=window.Telegram&&Telegram.WebApp;if(tg){tg.ready();tg.expand();const t=tg.themeParams||{},s=document.documentElement.style;
  if(t.bg_color){s.setProperty('--bg',t.secondary_bg_color||t.bg_color);s.setProperty('--card',t.bg_color);s.setProperty('--text',t.text_color);s.setProperty('--hint',t.hint_color||'#6b7280');s.setProperty('--btn',t.button_color||'#2563eb');s.setProperty('--btnt',t.button_text_color||'#fff')}}
 const $=id=>document.getElementById(id),esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
